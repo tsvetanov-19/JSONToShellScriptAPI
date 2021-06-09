@@ -15,13 +15,14 @@ class TaskController extends Controller
         if(isset($data['tasks'])) {
             $orderedCommands = $this->sortCommands($data['tasks']);
             try {
-                Storage::put($fileName, implode(PHP_EOL,$orderedCommands));
+                $fileContents = implode(PHP_EOL,$orderedCommands);
+                Storage::put($fileName, $fileContents);
             } catch(\Exception $e) {
                 dd($e);
             }
 
         }
-        return json_encode($orderedCommands ?? '');
+        return $fileContents;
     }
 
     private function sortCommands($tasks): array {
