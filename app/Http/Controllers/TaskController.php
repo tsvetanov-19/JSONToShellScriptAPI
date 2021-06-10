@@ -12,6 +12,7 @@ class TaskController extends Controller
     public function convertToShellScript(Request $request) {
         $data = $request->json()->all();
         $fileName = $data['filename'];
+        $fileContents = '';
         if(isset($data['tasks'])) {
             $orderedCommands = $this->sortCommands($data['tasks']);
             try {
@@ -20,26 +21,51 @@ class TaskController extends Controller
             } catch(\Exception $e) {
                 dd($e);
             }
-
         }
         return $fileContents;
     }
 
     private function sortCommands($tasks): array {
-        $orderedCommands = [];
-        $dependentCommands = [];
         $i = 0;
-        foreach($tasks as &$currentTask) {
-            $i++;
-            if(!isset($currentTask['dependencies']) || empty($currentTask['dependencies'])) {
-                $currentTask['weight'] = 0;
-                array_push($orderedCommands, $currentTask['command']);
+        $nonDependent = 0;
+        $ordered = [];
+        $t = [];
+        foreach($tasks as $currentTask){
+            if(!isset($currentTask['dependencies'])) {
+                $ordered[] = $currentTask['command'];
+                array_unshift($t, $currentTask['name']);
+                $nonDependent++;
             }
             else {
-                $currentTask['weight'] = $i + count($currentTask['dependencies']);
-                $dependentCommands[$currentTask['weight']] = $currentTask['command'];
+                $t[$i] = $currentTask['name'];
+            }
+            $i++;
+        }
+
+        $n = count($t);
+        for($j = $nonDependent; $j <$n; $j++) {
+            foreach($tasks as $currentTask) {
+                if(isset($currentTask['dependencies'])) {
+                    while(!empty($currentTask['dependencies'])) {
+                        $dep = array_shift($currentTask['dependencies']);
+                        $k = array_search($dep, $t);
+                        if($k > $j) {
+                            $t[$k] = $t[$j];
+                            $t[$j] = $dep;
+                        }
+                    }
+                }
             }
         }
-        return array_merge($orderedCommands,array_values($dependentCommands));
+
+        for($l = $nonDependent; $l <$n; $l++) {
+            foreach ($tasks as $task) {
+                if($task['name'] == $t[$l]) {
+                    $ordered[] = $task['command'];
+                }
+            }
+        }
+
+        return $ordered;
     }
 }
